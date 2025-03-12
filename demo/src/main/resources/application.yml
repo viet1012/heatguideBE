@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: demo
+
+
+
+  datasource:
+    url: jdbc:sqlserver://192.168.122.2:1433;databaseName=F2Database;encrypt=false;trustServerCertificate=true
+    username: kuser
+    password: SPC123@
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  jpa:
+    database-platform: org.hibernate.dialect.SQLServerDialect
+    show-sql: true
+
+  datasource.hikari:
+    minimum-idle: 5
+    maximum-pool-size: 10
+    idle-timeout: 30000
+    connection-timeout: 30000
+
+server:
+  address: 0.0.0.0
+  port: 8080

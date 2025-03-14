@@ -96,20 +96,109 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
     """, nativeQuery = true)
     List<MachineDashboardDTO> getMachineDashboardData();
 
+    @Query(value = """
+        SELECT dash.Mac_ID, dash.Mac_Name, dash.STD_Hour, STD_Output_Day,
+               output.Finish_Date, output.OutputQty,
+               processing.Processing_Hour,
+                processing.LastFinishTime,
+               processing.Note -- ✅ Thêm Note vào SELECT
+        FROM dbo.F2_Dashboard_Heat_Guide dash
 
+        -- Join với Output Data
+        LEFT JOIN
+        (
+            SELECT machine, Finish_Date, SUM(Sum_Qty) AS OutputQty
+            FROM
+            (
+                SELECT iot.machine,
+                       CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101) AS Finish_Date,
+                       SUM(iot.Qty) AS Sum_Qty
+                FROM dbo.F2_HeatGuide_IOTData iot
+                WHERE iot.FINISHTIME IS NOT NULL
+                GROUP BY iot.machine, CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101)
+            ) AS Table_Temp
+            GROUP BY machine, Finish_Date
+            HAVING Finish_Date = CONVERT(varchar, DATEADD(hour, -6, GETDATE()), 101)
+        ) AS output
+        ON dash.Mac_ID = output.machine
+
+        -- Join với Processing Data
+        LEFT JOIN
+        (
+            SELECT Table_Temp2.machine,
+                   CAST(DATEDIFF(MINUTE, MIN(Table_Temp2.FirstOfSTARTTIME), GETDATE()) / 60.0 AS DECIMAL(10,2))  AS Processing_Hour,
+                   MAX(iot.FINISHTIME) AS LastFinishTime,
+                   MAX(iot.Note) AS Note -- ✅ Lấy Note (nếu có nhiều, lấy MAX để tránh GROUP BY lỗi)
+            FROM
+            (
+                SELECT iot.machine,
+                       MIN(iot.no_id) AS FirstOfno_id,
+                       MIN(iot.STARTTIME) AS FirstOfSTARTTIME
+                FROM dbo.F2_HeatGuide_IOTData iot
+                WHERE iot.FINISHTIME IS NULL
+                GROUP BY iot.machine
+            ) AS Table_Temp2
+            LEFT JOIN dbo.F2_HeatGuide_IOTData iot
+            ON Table_Temp2.machine = iot.machine
+            GROUP BY Table_Temp2.machine
+        ) AS processing
+        ON dash.Mac_ID = processing.machine;
+    """, nativeQuery = true)
+    List<MachineDashboardDTO> getMachineDashboardDataVersion1();
+
+
+    /// QUERY ĐÚNG
 //    @Query(value = """
-//    SELECT
-//        DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,
-//        SUM(h.Qty) AS totalQty,
-//        h.ITEMCHECK
-//    FROM F2_HeatGuide_IOTData h
-//    WHERE h.STARTTIME >= DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-//      AND h.STARTTIME < DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-//      AND h.ITEMCHECK = :itemCheck
-//    GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), h.ITEMCHECK
-//    ORDER BY hourSlot
+//        SELECT dash.Mac_ID, dash.Mac_Name, dash.STD_Hour, STD_Output_Day,
+//               output.Finish_Date, output.OutputQty,
+//               processing.Processing_Hour,
+//                processing.LastFinishTime,
+//               processing.Note -- ✅ Thêm Note vào SELECT
+//        FROM dbo.F2_Dashboard_Heat_Guide dash
+//
+//        -- Join với Output Data
+//        LEFT JOIN
+//        (
+//            SELECT machine, Finish_Date, SUM(Sum_Qty) AS OutputQty
+//            FROM
+//            (
+//                SELECT iot.machine,
+//                       CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101) AS Finish_Date,
+//                       SUM(iot.Qty) AS Sum_Qty
+//                FROM dbo.F2_HeatGuide_IOTData iot
+//                WHERE iot.FINISHTIME IS NOT NULL
+//                GROUP BY iot.machine, CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101)
+//            ) AS Table_Temp
+//            GROUP BY machine, Finish_Date
+//            HAVING Finish_Date = CONVERT(varchar, DATEADD(hour, -6, GETDATE()), 101)
+//        ) AS output
+//        ON dash.Mac_ID = output.machine
+//
+//        -- Join với Processing Data
+//        LEFT JOIN
+//        (
+//            SELECT Table_Temp2.machine,
+//                   CAST(DATEDIFF(MINUTE, MIN(Table_Temp2.FirstOfSTARTTIME), GETDATE()) / 60.0 AS DECIMAL(10,2))  AS Processing_Hour,
+//                   MAX(iot.FINISHTIME) AS LastFinishTime,
+//                   MAX(iot.Note) AS Note -- ✅ Lấy Note (nếu có nhiều, lấy MAX để tránh GROUP BY lỗi)
+//            FROM
+//            (
+//                SELECT iot.machine,
+//                       MIN(iot.no_id) AS FirstOfno_id,
+//                       MIN(iot.STARTTIME) AS FirstOfSTARTTIME
+//                FROM dbo.F2_HeatGuide_IOTData iot
+//                WHERE iot.FINISHTIME IS NULL
+//                GROUP BY iot.machine
+//            ) AS Table_Temp2
+//            LEFT JOIN dbo.F2_HeatGuide_IOTData iot
+//            ON Table_Temp2.machine = iot.machine
+//            GROUP BY Table_Temp2.machine
+//        ) AS processing
+//        ON dash.Mac_ID = processing.machine;
 //    """, nativeQuery = true)
-//    List<Object[]> findHourlyDataByItem(@Param("itemCheck") String itemCheck);
+//    List<MachineDashboardDTO> getMachineDashboardData();
+
+
 @Query(value = """
         SELECT\s
            DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
@@ -164,8 +253,8 @@ List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
                    d.Mac_ID
                FROM F2_HeatGuide_IOTData h
                JOIN F2_Dashboard_Heat_Guide d ON h.machine = d.Mac_ID
-               WHERE h.STARTTIME >= DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE() - 2)))
-                      AND h.STARTTIME < DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE() - 1)))
+               WHERE h.STARTTIME >= DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE() - 1)))
+                      AND h.STARTTIME < DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
                  AND d.Mac_ID = :macID  -- Lọc theo Mac_ID
                GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), d.Mac_ID
                ORDER BY hourSlot;

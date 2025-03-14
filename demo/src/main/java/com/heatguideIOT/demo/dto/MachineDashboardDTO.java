@@ -12,11 +12,12 @@ public class MachineDashboardDTO {
     private String finishDate;
     private Integer outputQty;
     private BigDecimal processingHour;
-    private BigDecimal finishTime;
+    private Date  finishTime;
+    private String note;
 
     public MachineDashboardDTO(String macId, String macName, BigDecimal stdHour, Integer stdOutputDay,
                                String finishDate, Integer outputQty, BigDecimal processingHour,
-                               BigDecimal finishTime) {
+                               Date  finishTime, String note) {
         this.macId = macId;
         this.macName = macName;
         this.stdHour = stdHour;
@@ -25,7 +26,9 @@ public class MachineDashboardDTO {
         this.outputQty = outputQty;
         this.processingHour = processingHour;
         this.finishTime  = finishTime;
+        this.note = note;
     }
+
     public MachineDashboardDTO(String macId, String macName, BigDecimal stdHour, Integer stdOutputDay,
                                String finishDate, Integer outputQty, BigDecimal processingHour
                               ) {
@@ -37,6 +40,7 @@ public class MachineDashboardDTO {
         this.outputQty = outputQty;
         this.processingHour = processingHour;
     }
+
     // Getters & Setters
     public String getMacId() {
         return macId;
@@ -92,5 +96,21 @@ public class MachineDashboardDTO {
 
     public void setProcessingHour(BigDecimal processingHour) {
         this.processingHour = processingHour;
+    }
+
+    public Date getFinishTime() {
+        return finishTime;
+    }
+
+    public void setFinishTime(Date finishTime) {
+        this.finishTime = finishTime;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 }

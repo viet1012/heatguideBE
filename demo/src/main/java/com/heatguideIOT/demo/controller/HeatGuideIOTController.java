@@ -2,6 +2,7 @@ package com.heatguideIOT.demo.controller;
 
 
 import com.heatguideIOT.demo.dto.HeatGuideOutputDTO;
+import com.heatguideIOT.demo.dto.MachineDashboardDTO;
 import com.heatguideIOT.demo.dto.MachineSummaryDTO;
 import com.heatguideIOT.demo.model.HeatGuideIOT;
 import com.heatguideIOT.demo.service.HeatGuideIOTService;
@@ -24,8 +25,11 @@ public class HeatGuideIOTController {
     }
 
     @GetMapping("/machines")
-    public List<MachineSummaryDTO> getMachineSummary() {
-        return service.getMachineSummary();
+//    public List<MachineSummaryDTO> getMachineSummary() {
+//        return service.getMachineSummary();
+//    }
+    public List<MachineDashboardDTO> getMachineSummary() {
+        return service.getMachineDashboardData();
     }
 
     @GetMapping("/by-day-range")

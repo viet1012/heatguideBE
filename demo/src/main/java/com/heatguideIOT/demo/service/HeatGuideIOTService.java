@@ -1,6 +1,7 @@
 package com.heatguideIOT.demo.service;
 
 import com.heatguideIOT.demo.dto.HeatGuideOutputDTO;
+import com.heatguideIOT.demo.dto.MachineDashboardDTO;
 import com.heatguideIOT.demo.dto.MachineSummaryDTO;
 import com.heatguideIOT.demo.model.HeatGuideIOT;
 import com.heatguideIOT.demo.repository.HeatGuideIOTRepository;
@@ -22,8 +23,12 @@ public class HeatGuideIOTService {
         return repository.findAllRecords();
     }
 
-    public List<MachineSummaryDTO> getMachineSummary() {
-        return repository.findMachineSummary();
+//    public List<MachineSummaryDTO> getMachineSummary() {
+//        return repository.findMachineSummary();
+//    }
+
+    public List<MachineDashboardDTO> getMachineDashboardData() {
+        return repository.getMachineDashboardData();
     }
 
     public List<HeatGuideOutputDTO> getDataByTimeRangeAndItemCheck( String itemCheck) {

@@ -48,17 +48,36 @@ public class HeatGuideIOTController {
 
     @GetMapping("/findDailyHeatGuideMoldAndMainIOT")
     public List<FerthDTO> findDailyHeatGuideMoldAndMainIOT() {
+        List<FerthDTO> findDailyHeatGuideMoldAndMainIOT =  service.findDailyHeatGuideIOT("MoldAndMain");
+        int totalLots = findDailyHeatGuideMoldAndMainIOT.stream()
+                .mapToInt(ferth -> ferth.getLots().size())
+                .sum();
+
+        System.out.println("Tổng số lots: " + totalLots);
+
         return service.findDailyHeatGuideIOT("MoldAndMain");
     }
 
     @GetMapping("/findDailyHeatGuideSubAndDowelIOT")
     public List<FerthDTO> findDailyHeatGuideMainAndDowelIOT() {
+        List<FerthDTO> findDailyHeatGuideMoldAndMainIOT =  service.findDailyHeatGuideIOT("SubAndDowel");
+        int totalLots = findDailyHeatGuideMoldAndMainIOT.stream()
+                .mapToInt(ferth -> ferth.getLots().size())
+                .sum();
+        System.out.println("Tổng số lots: " + totalLots);
+
         return service.findDailyHeatGuideIOT("SubAndDowel");
     }
 
 
     @GetMapping("/findDailyHeatGuideMainAndMoldIOT")
     public List<FerthDTO> findDailyHeatGuideMainAndMoldIOT() {
+        List<FerthDTO> findDailyHeatGuideMoldAndMainIOT =  service.findDailyHeatGuideIOT("MainAndMold");
+        int totalLots = findDailyHeatGuideMoldAndMainIOT.stream()
+                .mapToInt(ferth -> ferth.getLots().size())
+                .sum();
+        System.out.println("Tổng số lots: " + totalLots);
+
         return service.findDailyHeatGuideIOT("MainAndMold");
     }
 

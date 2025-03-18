@@ -13,5 +13,9 @@ public class FerthDTO {
         this.lots = lots;
     }
 
+    public List<LotDTO> getLots() {
+        return lots;
+    }
+
     // Getter & Setter
 }

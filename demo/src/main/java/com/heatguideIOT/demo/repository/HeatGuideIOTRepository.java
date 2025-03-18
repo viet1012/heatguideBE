@@ -300,8 +300,8 @@ List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
       FROM F2_HeatGuide_Lot AS l
       INNER JOIN F2_HeatGuide_Daily AS d ON l.poreqno = d.POREQNO
       WHERE (d.FERTH = 'Mold Post' OR d.FERTH = 'Main Bush' )\s
-       AND d.FINISHTIME IS NULL
        AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+       AND d.ITEMCHECK <> 'Heat Finish'\s
       GROUP BY l.lot, d.FERTH, d.ITEMCHECK
       ORDER BY l.lot ASC, STARTTIME ASC;
    
@@ -320,7 +320,7 @@ List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
             ON l.poreqno = d.POREQNO
         WHERE\s
             d.FERTH IN ('Sub Post', 'Sub Bush', 'Dowel Pins')
-            AND d.FINISHTIME IS NULL
+            AND d.ITEMCHECK <> 'Heat Finish'\s
             AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
         GROUP BY\s
             l.lot, d.FERTH, d.ITEMCHECK
@@ -339,7 +339,7 @@ List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
       FROM F2_HeatGuide_Lot AS l
       INNER JOIN F2_HeatGuide_Daily AS d ON l.poreqno = d.POREQNO
       WHERE (d.FERTH = 'Mold Post' OR d.FERTH = 'Main Post' )\s
-       AND d.FINISHTIME IS NULL
+       AND d.ITEMCHECK <> 'Heat Finish'\s
        AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
       GROUP BY l.lot, d.FERTH, d.ITEMCHECK
       ORDER BY l.lot ASC, STARTTIME ASC;

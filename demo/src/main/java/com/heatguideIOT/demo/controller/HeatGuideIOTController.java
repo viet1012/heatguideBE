@@ -57,7 +57,7 @@ public class HeatGuideIOTController {
     }
 
 
-    @GetMapping("/findDailyHeatGuideMainAndMoldIOTfindDailyHeatGuideMainAndMoldIOT")
+    @GetMapping("/findDailyHeatGuideMainAndMoldIOT")
     public List<FerthDTO> findDailyHeatGuideMainAndMoldIOT() {
         return service.findDailyHeatGuideIOT("MainAndMold");
     }

@@ -261,4 +261,89 @@ List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
     """, nativeQuery = true)
     List<Object[]> findNightShiftDataByItemForYesterday(@Param("macID") String itemCheck);
 
+
+
+
+    @Query(value = """
+       SELECT\s
+                   l.lot,
+                   d.ITEMCHECK,
+                   d.STARTTIME,
+                   d.FINISHTIME
+               FROM\s
+                   F2_HeatGuide_Lot AS l
+               INNER JOIN\s
+                   F2_HeatGuide_Daily AS d
+               ON\s
+                   l.poreqno = d.POREQNO
+               WHERE\s
+                   d.STARTTIME = (SELECT MIN(d2.STARTTIME)\s
+                                  FROM F2_HeatGuide_Daily d2\s
+                                  WHERE d2.POREQNO = d.POREQNO\s
+                                    AND d2.STARTTIME >= CAST(GETDATE() AS DATE)\s
+                                    AND d2.STARTTIME < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)))
+               ORDER BY\s
+                   d.STARTTIME ASC;
+   
+    """, nativeQuery = true)
+    List<Object[]> findDaily1();
+
+
+
+    @Query(value = """
+      SELECT\s
+          l.lot,\s
+          d.FERTH,\s
+          d.ITEMCHECK,\s
+          MIN(d.STARTTIME) AS STARTTIME, \s
+          MAX(d.FINISHTIME) AS FINISHTIME
+      FROM F2_HeatGuide_Lot AS l
+      INNER JOIN F2_HeatGuide_Daily AS d ON l.poreqno = d.POREQNO
+      WHERE (d.FERTH = 'Mold Post' OR d.FERTH = 'Main Bush' )\s
+       AND d.FINISHTIME IS NULL
+       AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+      GROUP BY l.lot, d.FERTH, d.ITEMCHECK
+      ORDER BY l.lot ASC, STARTTIME ASC;
+   
+    """, nativeQuery = true)
+    List<Object[]> findDailyHeatGuideMoldAndMainIOT();
+
+    @Query(value = """
+      SELECT\s
+            l.lot,\s
+            d.FERTH,\s
+            d.ITEMCHECK,\s
+            MIN(d.STARTTIME) AS STARTTIME,\s
+            MAX(d.FINISHTIME) AS FINISHTIME
+        FROM F2_HeatGuide_Lot l
+        INNER JOIN F2_HeatGuide_Daily d\s
+            ON l.poreqno = d.POREQNO
+        WHERE\s
+            d.FERTH IN ('Sub Post', 'Sub Bush', 'Dowel Pins')
+            AND d.FINISHTIME IS NULL
+            AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+        GROUP BY\s
+            l.lot, d.FERTH, d.ITEMCHECK
+        ORDER BY\s
+            l.lot ASC, STARTTIME ASC;
+    """, nativeQuery = true)
+    List<Object[]> findDailyHeatGuideSubAndDowelIOT();
+
+    @Query(value = """
+      SELECT\s
+          l.lot,\s
+          d.FERTH,\s
+          d.ITEMCHECK,\s
+          MIN(d.STARTTIME) AS STARTTIME, \s
+          MAX(d.FINISHTIME) AS FINISHTIME
+      FROM F2_HeatGuide_Lot AS l
+      INNER JOIN F2_HeatGuide_Daily AS d ON l.poreqno = d.POREQNO
+      WHERE (d.FERTH = 'Mold Post' OR d.FERTH = 'Main Post' )\s
+       AND d.FINISHTIME IS NULL
+       AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+      GROUP BY l.lot, d.FERTH, d.ITEMCHECK
+      ORDER BY l.lot ASC, STARTTIME ASC;
+   
+    """, nativeQuery = true)
+    List<Object[]> findDailyHeatGuideMainAndMoldIOT();
 }

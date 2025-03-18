@@ -1,9 +1,7 @@
 package com.heatguideIOT.demo.controller;
 
 
-import com.heatguideIOT.demo.dto.HeatGuideOutputDTO;
-import com.heatguideIOT.demo.dto.MachineDashboardDTO;
-import com.heatguideIOT.demo.dto.MachineSummaryDTO;
+import com.heatguideIOT.demo.dto.*;
 import com.heatguideIOT.demo.model.HeatGuideIOT;
 import com.heatguideIOT.demo.service.HeatGuideIOTService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +46,21 @@ public class HeatGuideIOTController {
         return service.findNightShiftDataByItemForYesterday(itemCheck);
     }
 
-//    @GetMapping("/by-time-range")
-//    public List<HeatGuideOutputDTO> getDataByTimeRangeAndItemCheck() {
-//        return service.getDataByTimeRangeAndItemCheck();
-//    }
+    @GetMapping("/findDailyHeatGuideMoldAndMainIOT")
+    public List<FerthDTO> findDailyHeatGuideMoldAndMainIOT() {
+        return service.findDailyHeatGuideIOT("MoldAndMain");
+    }
+
+    @GetMapping("/findDailyHeatGuideSubAndDowelIOT")
+    public List<FerthDTO> findDailyHeatGuideMainAndDowelIOT() {
+        return service.findDailyHeatGuideIOT("SubAndDowel");
+    }
+
+
+    @GetMapping("/findDailyHeatGuideMainAndMoldIOTfindDailyHeatGuideMainAndMoldIOT")
+    public List<FerthDTO> findDailyHeatGuideMainAndMoldIOT() {
+        return service.findDailyHeatGuideIOT("MainAndMold");
+    }
+
 
 }

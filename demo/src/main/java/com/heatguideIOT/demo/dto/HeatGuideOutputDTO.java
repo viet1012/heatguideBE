@@ -20,4 +20,5 @@ public class HeatGuideOutputDTO {
         this.qty = integer;
         this.itemcheck = s;
     }
+
 }

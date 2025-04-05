@@ -307,7 +307,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                         INNER JOIN F2_HeatGuide_Daily AS d
                             ON l.POREQNO = d.POREQNO
                         LEFT JOIN F2_HeatGuide_IOTData iot
-                            ON d.POREQNO = iot.POREQNO\s
+                            ON d.POREQNO = iot.POREQNO
                             AND d.ITEMCHECK = iot.ITEMCHECK -- Thêm điều kiện để lấy đúng machine
                         LEFT JOIN F2_HeatGuide_Daily d2
                             ON d.POREQNO = d2.POREQNO

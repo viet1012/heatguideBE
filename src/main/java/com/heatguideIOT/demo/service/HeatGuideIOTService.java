@@ -83,68 +83,6 @@ public class HeatGuideIOTService {
     }
 
 
-
-//    public List<FerthDTO> findDailyHeatGuideIOT(String type) {
-//        List<Object[]> results;
-//
-//        if ("MoldAndMain".equals(type)) {
-//            results = repository.findDailyHeatGuideMoldAndMainIOT();
-//        } else if ("SubAndDowel".equals(type)) {
-//            results = repository.findDailyHeatGuideSubAndDowelIOT();
-//        } else if ("MainAndMold".equals(type)) {
-//            results = repository.findDailyHeatGuideMainAndMoldIOT();
-//        } else  if ("MoldAndMainWaiting".equals(type)) {
-//            results = repository.findDailyHeatGuideMoldAndMainWaitingIOT();
-//        }
-//          else{
-//            throw new IllegalArgumentException("Invalid type: " + type);
-//          }
-//
-//        // Debug: In dữ liệu raw từ database
-//        results.forEach(row -> System.out.println(
-//                "lot: " + row[0] + ", ferth: " + row[1] + ", itemcheck: " + row[2] +
-//                        ", starttime: " + row[3] + ", finishtime: " + row[4]
-//        ));
-//
-//        // Chuyển đổi danh sách Object[] thành danh sách HeatGuideSlotDTO
-//        List<HeatGuideSlotDTO> slots = results.stream()
-//                .map(obj -> new HeatGuideSlotDTO(
-//                        (String) obj[0], // lot
-//                        (String) obj[1], // ferth
-//                        (String) obj[2], // itemCheck
-//                        obj[3] != null ? ((Timestamp) obj[3]).toLocalDateTime() : null, // startTime
-//                        obj[4] != null ? ((Timestamp) obj[4]).toLocalDateTime() : null  // finishTime
-//                ))
-//                .collect(Collectors.toList());
-//
-//        // Nhóm dữ liệu theo ferth và lot
-//        Map<String, Map<String, List<HeatGuideItemDTO>>> groupedData = slots.parallelStream()
-//                .collect(Collectors.groupingBy(
-//                        HeatGuideSlotDTO::getFerth,
-//                        Collectors.groupingBy(
-//                                HeatGuideSlotDTO::getLot,
-//                                Collectors.mapping(slot -> new HeatGuideItemDTO(
-//                                        slot.getItemCheck(),
-//                                        slot.getStartTime(),
-//                                        slot.getFinishTime(),
-//                                ), Collectors.toList())
-//                        )
-//                ));
-//
-//        // Chuyển đổi Map thành danh sách FerthDTO
-//        return groupedData.entrySet().parallelStream()
-//                .map(entry -> new FerthDTO(
-//                        entry.getKey(),
-//                        entry.getValue().entrySet().stream()
-//                                .map(lotEntry -> new LotDTO(
-//                                        lotEntry.getKey(),
-//                                        lotEntry.getValue()
-//                                ))
-//                                .collect(Collectors.toList())
-//                ))
-//                .collect(Collectors.toList());
-//    }
-
     public List<FerthDTO> findDailyHeatGuideIOT(String type) {
     List<Object[]> results;
 

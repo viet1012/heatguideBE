@@ -15,6 +15,11 @@ public class BatchAbnormal {
     @Column(name = "dateadd", length = 50, nullable = true)
     private LocalDateTime dateadd;
 
+    @Column(name = "process", length = 50, nullable = false)
+    private String process;
+
+    @Column(name = "comment", length = 50, nullable = false)
+    private String comment;
 
     public String getBatchId() {
         return batchId;
@@ -30,5 +35,21 @@ public class BatchAbnormal {
 
     public void setDateadd(LocalDateTime dateadd) {
         this.dateadd = dateadd;
+    }
+
+    public String getProcess() {
+        return process;
+    }
+
+    public void setProcess(String process) {
+        this.process = process;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 }

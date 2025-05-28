@@ -18,41 +18,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
     @Query(value = "SELECT * FROM F2_HeatGuide_IOTData", nativeQuery = true)
     List<HeatGuideIOT> findAllRecords();
 
-//    @Query(value = """
-//            WITH CTE AS (
-//                SELECT
-//                    ITEMCHECK,
-//                    no_id,
-//                    machine,
-//                    STARTTIME,
-//                    FINISHTIME,
-//                    SUM(Qty) AS Sum_Qty,
-//                    ROW_NUMBER() OVER (PARTITION BY ITEMCHECK, no_id, machine ORDER BY STARTTIME) AS RowNum
-//                FROM F2_HeatGuide_IOTData
-//                WHERE no_id IS NOT NULL
-//                AND FINISHTIME IS NOT NULL
-//                GROUP BY ITEMCHECK, no_id, machine, STARTTIME, FINISHTIME
-//            )
-//            SELECT
-//                machine,
-//                ITEMCHECK,
-//                SUM(ROUND(DATEDIFF(MINUTE, FirstOfSTARTTIME, FirstOfFINISHTIME) / 60.0, 2)) AS TTL_Time,
-//                SUM(Sum_Qty) AS Quantity
-//            FROM (
-//                SELECT
-//                    ITEMCHECK,
-//                    no_id,
-//                    machine,
-//                    STARTTIME AS FirstOfSTARTTIME,
-//                    FINISHTIME AS FirstOfFINISHTIME,
-//                    Sum_Qty
-//                FROM CTE
-//                WHERE RowNum = 1
-//            ) AS Table_Temp
-//            GROUP BY machine, ITEMCHECK;
-//    """, nativeQuery = true)
-//    List<MachineSummaryDTO> findMachineSummary();
-
 
     @Query(value = """
                 SELECT dash.Mac_ID, dash.Mac_Name, dash.STD_Hour, STD_Output_Day, output.Finish_Date, output.OutputQty, processing.Processing_Hour
@@ -144,6 +109,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
 //        ON dash.Mac_ID = processing.machine;
 //    """, nativeQuery = true)
 //    List<MachineDashboardDTO> getMachineDashboardData();
+
     @Query(value = """
                 SELECT\s
                    DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
@@ -205,31 +171,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                        ORDER BY hourSlot;
             """, nativeQuery = true)
     List<Object[]> findNightShiftDataByItemForYesterday(@Param("macID") String itemCheck);
-
-
-    @Query(value = """
-               SELECT\s
-                           l.lot,
-                           d.ITEMCHECK,
-                           d.STARTTIME,
-                           d.FINISHTIME
-                       FROM\s
-                           F2_HeatGuide_Lot AS l
-                       INNER JOIN\s
-                           F2_HeatGuide_Daily AS d
-                       ON\s
-                           l.poreqno = d.POREQNO
-                       WHERE\s
-                           d.STARTTIME = (SELECT MIN(d2.STARTTIME)\s
-                                          FROM F2_HeatGuide_Daily d2\s
-                                          WHERE d2.POREQNO = d.POREQNO\s
-                                            AND d2.STARTTIME >= CAST(GETDATE() AS DATE)\s
-                                            AND d2.STARTTIME < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)))
-                       ORDER BY\s
-                           d.STARTTIME ASC;
-            
-            """, nativeQuery = true)
-    List<Object[]> findDaily1();
 
 
     @Query(value = """
@@ -367,35 +308,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                      l.lot ASC, STARTTIME ASC;
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideSubAndDowelIOT();
-
-//    @Query(value = """
-//      SELECT
-//          l.lot,
-//          d.FERTH,
-//          d.ITEMCHECK,
-//          MIN(d.STARTTIME) AS STARTTIME,
-//          MAX(d.FINISHTIME) AS FINISHTIME
-//      FROM F2_HeatGuide_Lot AS l
-//      INNER JOIN F2_HeatGuide_Daily AS d
-//          ON l.poreqno = d.POREQNO
-//      LEFT JOIN F2_HeatGuide_Daily d2
-//          ON d.POREQNO = d2.POREQNO
-//          AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
-//      LEFT JOIN HeatFinishGuide hfg
-//          ON hfg.PO = l.poreqno
-//      WHERE
-//          d.FERTH IN ('Mold Post', 'Main Post')
-//          AND d.STARTTIME >= DATEADD(DAY, -2, GETDATE())
-//          AND d2.POREQNO IS NULL  -- Thay NOT EXISTS bằng kiểm tra NULL
-//          AND hfg.PO IS NULL      -- Thay NOT EXISTS bằng kiểm tra NULL
-//      GROUP BY
-//          l.lot, d.FERTH, d.ITEMCHECK
-//      ORDER BY
-//          l.lot ASC, STARTTIME ASC
-//      OPTION (HASH JOIN, RECOMPILE);
-//
-//    """, nativeQuery = true)
-//    List<Object[]> findDailyHeatGuideMainAndMoldIOT();
 
     @Query(value = """
              WITH RankedLots AS (

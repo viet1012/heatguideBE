@@ -170,59 +170,63 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
 
 
     @Query(value = """
-                    WITH RankedLots AS (
-                            SELECT
-                                lot,
-                                POREQNO,
-                                ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
-                            FROM F2_HeatGuide_Lot
-                        ),
-                        RankedData AS (
-                            SELECT
-                                l.lot,
-                                d.POREQNO,
-                                d.Qty,
-                                d.FERTH,
-                                COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- Nếu machine NULL thì lấy ITEMCHECK
-                                d.ITEMCHECK,
-                                MIN(d.STARTTIME) AS STARTTIME,
-                                MAX(d.FINISHTIME) AS FINISHTIME,
-                                ROW_NUMBER() OVER (PARTITION BY l.lot, d.FERTH, d.ITEMCHECK ORDER BY MAX(d.FINISHTIME) DESC) AS rn
-                            FROM RankedLots AS l
-                            INNER JOIN F2_HeatGuide_Daily AS d
-                                ON l.POREQNO = d.POREQNO
-                            LEFT JOIN F2_HeatGuide_IOTData iot
-                                ON d.POREQNO = iot.POREQNO
-                                AND d.ITEMCHECK = iot.ITEMCHECK -- Thêm điều kiện để lấy đúng machine
-                            LEFT JOIN F2_HeatGuide_Daily d2
-                                ON d.POREQNO = d2.POREQNO
-                                AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
-                            LEFT JOIN HeatFinishGuide hfg
-                                ON hfg.PO = l.POREQNO
-                            WHERE
-                                d.FERTH NOT IN ('Mold Post', 'Main Post') AND
-                                d.ITEMCHECK NOT LIKE 'HRC%' AND  -- ⚠️ Loại bỏ các công đoạn HRC
-                                d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
-                                AND d2.POREQNO IS NULL
-                                AND hfg.PO IS NULL
-                                AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
-                            GROUP BY
-                                l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK , d.Qty
-                        )
-                        SELECT
-                            lot,
-                            FERTH,
-                            ITEMCHECK,
-                            machine,
-                            STARTTIME,
-                            FINISHTIME,
-                            POREQNO,
-                            Qty
-                        FROM RankedData
-                        WHERE rn = 1  -- Chỉ lấy 1 dòng duy nhất cho mỗi nhóm ITEMCHECK
-                        ORDER BY
-                            lot ASC, STARTTIME ASC
-                        OPTION (HASH JOIN, RECOMPILE);
+              WITH RankedLots AS (
+                  SELECT
+                      lot,
+                      POREQNO,
+                      ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
+                  FROM F2_HeatGuide_Lot
+              ),
+              RankedData AS (
+                  SELECT
+                      l.lot,
+                      d.POREQNO,
+                      d.Qty,
+                      d.FERTH,
+                      COALESCE(iot.machine, d.ITEMCHECK) AS machine,
+                      d.ITEMCHECK,
+                      iot.NOTE,
+                      MIN(d.STARTTIME) AS STARTTIME,
+                      MAX(d.FINISHTIME) AS FINISHTIME,
+                      ROW_NUMBER() OVER (
+                          PARTITION BY l.lot, d.FERTH, d.ITEMCHECK
+                          ORDER BY MAX(d.FINISHTIME) DESC
+                      ) AS rn
+                  FROM RankedLots AS l
+                  INNER JOIN F2_HeatGuide_Daily AS d
+                      ON l.POREQNO = d.POREQNO
+                  LEFT JOIN F2_HeatGuide_IOTData iot
+                      ON d.POREQNO = iot.POREQNO AND d.ITEMCHECK = iot.ITEMCHECK
+                  LEFT JOIN F2_HeatGuide_Daily d2
+                      ON d.POREQNO = d2.POREQNO AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
+                  LEFT JOIN HeatFinishGuide hfg
+                      ON hfg.PO = l.POREQNO
+                  WHERE
+                      d.FERTH NOT IN ('Mold Post', 'Main Post') AND
+                      d.STARTTIME >= DATEADD(DAY, -7, GETDATE()) AND
+                      d2.POREQNO IS NULL AND
+                      hfg.PO IS NULL AND
+                      l.lot_rank = 1
+                  GROUP BY
+                      l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK, d.Qty, iot.NOTE
+              )
+              SELECT
+                  lot,
+                  FERTH,
+                  ITEMCHECK,
+                  machine,
+                  STARTTIME,
+                  FINISHTIME,
+                  POREQNO,
+                  Qty,
+                  CASE
+                      WHEN ITEMCHECK LIKE 'HRC%' THEN NOTE
+                      ELSE NULL
+                  END AS NOTE
+              FROM RankedData
+              WHERE rn = 1
+              ORDER BY lot ASC, STARTTIME ASC
+              OPTION (HASH JOIN, RECOMPILE);
             
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMoldAndMainIOT();

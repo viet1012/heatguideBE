@@ -8,6 +8,9 @@ import java.util.Objects;
 @Data
 @AllArgsConstructor
 public class LotInfoDTO {
+
+    private String itemCheck;
+    private String note;
     private String ferth;
     private Integer qty;
     private String poreqno;

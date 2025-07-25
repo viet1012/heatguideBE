@@ -1,6 +1,7 @@
 package com.heatguideIOT.demo.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class HeatGuideSlotDTO {
     private String lot;
@@ -10,14 +11,20 @@ public class HeatGuideSlotDTO {
     private LocalDateTime startTime;
     private LocalDateTime finishTime;
 
+    private Integer Qty;
+    private String POREQNO;
+
     // Constructors
-    public HeatGuideSlotDTO(String lot, String ferth, String itemCheck, String machine, LocalDateTime startTime, LocalDateTime finishTime) {
+    public HeatGuideSlotDTO(String lot, String ferth, String itemCheck, String machine, LocalDateTime startTime, LocalDateTime finishTime, String POREQNO, Integer qty) {
         this.lot = lot;
         this.ferth = ferth;
         this.itemCheck = itemCheck;
         this.machine = machine;  // ✅ Gán machine
         this.startTime = startTime;
         this.finishTime = finishTime;
+        this.POREQNO = POREQNO;
+        this.Qty = qty;
+
     }
 
     // Getters and Setters
@@ -67,5 +74,21 @@ public class HeatGuideSlotDTO {
 
     public void setFinishTime(LocalDateTime finishTime) {
         this.finishTime = finishTime;
+    }
+
+    public Integer getQty() {
+        return Qty;
+    }
+
+    public void setQty(Integer qty) {
+        Qty = qty;
+    }
+
+    public String getPOREQNO() {
+        return POREQNO;
+    }
+
+    public void setPOREQNO(String POREQNO) {
+        this.POREQNO = POREQNO;
     }
 }

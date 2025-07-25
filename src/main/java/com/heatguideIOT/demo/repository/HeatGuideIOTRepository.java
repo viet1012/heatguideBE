@@ -1,15 +1,12 @@
 package com.heatguideIOT.demo.repository;
 
-import com.heatguideIOT.demo.dto.HeatGuideOutputDTO;
 import com.heatguideIOT.demo.dto.MachineDashboardDTO;
-import com.heatguideIOT.demo.dto.MachineSummaryDTO;
 import com.heatguideIOT.demo.model.HeatGuideIOT;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -109,7 +106,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
 //        ON dash.Mac_ID = processing.machine;
 //    """, nativeQuery = true)
 //    List<MachineDashboardDTO> getMachineDashboardData();
-
     @Query(value = """
                 SELECT\s
                    DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
@@ -175,108 +171,128 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
 
     @Query(value = """
                     WITH RankedLots AS (
+                            SELECT
+                                lot,
+                                POREQNO,
+                                ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
+                            FROM F2_HeatGuide_Lot
+                        ),
+                        RankedData AS (
+                            SELECT
+                                l.lot,
+                                d.POREQNO,
+                                d.Qty,
+                                d.FERTH,
+                                COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- Nếu machine NULL thì lấy ITEMCHECK
+                                d.ITEMCHECK,
+                                MIN(d.STARTTIME) AS STARTTIME,
+                                MAX(d.FINISHTIME) AS FINISHTIME,
+                                ROW_NUMBER() OVER (PARTITION BY l.lot, d.FERTH, d.ITEMCHECK ORDER BY MAX(d.FINISHTIME) DESC) AS rn
+                            FROM RankedLots AS l
+                            INNER JOIN F2_HeatGuide_Daily AS d
+                                ON l.POREQNO = d.POREQNO
+                            LEFT JOIN F2_HeatGuide_IOTData iot
+                                ON d.POREQNO = iot.POREQNO
+                                AND d.ITEMCHECK = iot.ITEMCHECK -- Thêm điều kiện để lấy đúng machine
+                            LEFT JOIN F2_HeatGuide_Daily d2
+                                ON d.POREQNO = d2.POREQNO
+                                AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
+                            LEFT JOIN HeatFinishGuide hfg
+                                ON hfg.PO = l.POREQNO
+                            WHERE
+                                d.FERTH NOT IN ('Mold Post', 'Main Post') AND
+                                d.ITEMCHECK NOT LIKE 'HRC%' AND  -- ⚠️ Loại bỏ các công đoạn HRC
+                                d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+                                AND d2.POREQNO IS NULL
+                                AND hfg.PO IS NULL
+                                AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
+                            GROUP BY
+                                l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK , d.Qty
+                        )
                         SELECT
                             lot,
+                            FERTH,
+                            ITEMCHECK,
+                            machine,
+                            STARTTIME,
+                            FINISHTIME,
                             POREQNO,
-                            ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
-                        FROM F2_HeatGuide_Lot
-                    ),
-                    RankedData AS (
-                        SELECT
-                            l.lot,
-                            d.POREQNO,
-                            d.FERTH,
-                            COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- Nếu machine NULL thì lấy ITEMCHECK
-                            d.ITEMCHECK,
-                            MIN(d.STARTTIME) AS STARTTIME,
-                            MAX(d.FINISHTIME) AS FINISHTIME,
-                            ROW_NUMBER() OVER (PARTITION BY l.lot, d.FERTH, d.ITEMCHECK ORDER BY MAX(d.FINISHTIME) DESC) AS rn
-                        FROM RankedLots AS l
-                        INNER JOIN F2_HeatGuide_Daily AS d
-                            ON l.POREQNO = d.POREQNO
-                        LEFT JOIN F2_HeatGuide_IOTData iot
-                            ON d.POREQNO = iot.POREQNO
-                            AND d.ITEMCHECK = iot.ITEMCHECK -- Thêm điều kiện để lấy đúng machine
-                        LEFT JOIN F2_HeatGuide_Daily d2
-                            ON d.POREQNO = d2.POREQNO
-                            AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
-                        LEFT JOIN HeatFinishGuide hfg
-                            ON hfg.PO = l.POREQNO
-                        WHERE
-                            d.FERTH IN ('Mold Bush', 'Main Bush', 'Sub Post', 'Sub Bush', 'Dowel Pins')
-                            AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
-                            AND d2.POREQNO IS NULL
-                            AND hfg.PO IS NULL
-                            AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
-                        GROUP BY
-                            l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK
-                    )
-                    SELECT
-                        lot,
-                        FERTH,
-                        ITEMCHECK,
-                        machine,
-                        STARTTIME,
-                        FINISHTIME
-                    FROM RankedData
-                    WHERE rn = 1  -- Chỉ lấy 1 dòng duy nhất cho mỗi nhóm ITEMCHECK
-                    ORDER BY
-                        lot ASC, STARTTIME ASC
-                    OPTION (HASH JOIN, RECOMPILE);
+                            Qty
+                        FROM RankedData
+                        WHERE rn = 1  -- Chỉ lấy 1 dòng duy nhất cho mỗi nhóm ITEMCHECK
+                        ORDER BY
+                            lot ASC, STARTTIME ASC
+                        OPTION (HASH JOIN, RECOMPILE);
             
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMoldAndMainIOT();
 
     @Query(value = """
-              WITH RankedLots AS (
-                          SELECT
-                              lot,
-                              POREQNO,
-                              ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
-                          FROM F2_HeatGuide_Lot
-                      ),
-                      RankedData AS (
-                          SELECT
-                              l.lot,
-                              d.POREQNO,
-                              d.FERTH,
-                              d.ITEMCHECK,
-                              COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- Nếu machine NULL thì lấy ITEMCHECK
-                              MIN(d.STARTTIME) AS STARTTIME,
-                              MAX(d.FINISHTIME) AS FINISHTIME
-                          FROM RankedLots AS l
-                          INNER JOIN F2_HeatGuide_Daily AS d
-                              ON l.POREQNO = d.POREQNO
-                          LEFT JOIN F2_HeatGuide_IOTData iot
-                              ON d.POREQNO = iot.POREQNO
-                              AND d.ITEMCHECK = iot.ITEMCHECK  -- Điều kiện lấy đúng machine
-                          LEFT JOIN F2_HeatGuide_Daily d2
-                              ON d.POREQNO = d2.POREQNO
-                              AND d2.ITEMCHECK = 'Waiting'  -- Chỉ lấy các mục có 'Waiting'
-                          LEFT JOIN HeatFinishGuide hfg
-                              ON hfg.PO = l.POREQNO
-                          WHERE
-                              d.FERTH IN ('Mold Bush', 'Main Bush', 'Sub Post', 'Sub Bush', 'Dowel Pins')
-                              AND d.STARTTIME >= DATEADD(DAY, -10, GETDATE())
-                              AND hfg.PO IS NULL  -- Không có trong bảng HeatFinishGuide
-                              AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
-                              AND d2.ITEMCHECK = 'Waiting'
-                          GROUP BY
-                              l.lot, d.POREQNO, d.FERTH, d.ITEMCHECK, iot.machine
-                      ),
-                      FinalData AS (
-                          SELECT
-                              lot, FERTH, ITEMCHECK, machine, STARTTIME, FINISHTIME,
-                              ROW_NUMBER() OVER (PARTITION BY lot, FERTH, ITEMCHECK ORDER BY STARTTIME DESC) AS rn
-                          FROM RankedData
-                      )
-                      SELECT
-                          lot, FERTH, ITEMCHECK, machine, STARTTIME, FINISHTIME
-                      FROM FinalData
-                      WHERE rn = 1  -- Chỉ lấy dòng mới nhất cho mỗi nhóm ITEMCHECK
-                      ORDER BY
-                          lot ASC, STARTTIME ASC
-                      OPTION (HASH JOIN, RECOMPILE);
+            WITH RankedLots AS (
+                SELECT
+                    lot,
+                    POREQNO,
+                    ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
+                FROM F2_HeatGuide_Lot
+            ),
+            RankedData AS (
+                SELECT
+                    l.lot,
+                    d.POREQNO,
+                    d.Qty,
+                    d.FERTH,
+                    d.ITEMCHECK,
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- Nếu machine NULL thì lấy ITEMCHECK
+                    MIN(d.STARTTIME) AS STARTTIME,
+                    MAX(d.FINISHTIME) AS FINISHTIME
+                FROM RankedLots AS l
+                INNER JOIN F2_HeatGuide_Daily AS d
+                    ON l.POREQNO = d.POREQNO
+                LEFT JOIN F2_HeatGuide_IOTData iot
+                    ON d.POREQNO = iot.POREQNO
+                    AND d.ITEMCHECK = iot.ITEMCHECK  -- Điều kiện lấy đúng machine
+                LEFT JOIN F2_HeatGuide_Daily d2
+                    ON d.POREQNO = d2.POREQNO
+                    AND d2.ITEMCHECK = 'Waiting'  -- Chỉ lấy các mục có 'Waiting'
+                LEFT JOIN HeatFinishGuide hfg
+                    ON hfg.PO = l.POREQNO
+                WHERE
+                    d.FERTH IN ('Mold Bush', 'Main Bush', 'Sub Post', 'Sub Bush', 'Dowel Pins')
+                    AND d.STARTTIME >= DATEADD(DAY, -10, GETDATE())
+                    AND hfg.PO IS NULL  -- Không có trong bảng HeatFinishGuide
+                    AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
+                    AND d2.ITEMCHECK = 'Waiting'
+                GROUP BY
+                    l.lot, d.POREQNO, d.FERTH, d.ITEMCHECK, iot.machine, d.Qty
+            ),
+            FinalData AS (
+                SELECT
+                    lot,
+                    FERTH,
+                    ITEMCHECK,
+                    machine,
+                    STARTTIME,
+                    FINISHTIME,
+                    POREQNO,
+                    Qty,
+                    ROW_NUMBER() OVER (PARTITION BY lot, FERTH, ITEMCHECK ORDER BY STARTTIME DESC) AS rn
+                FROM RankedData
+            )
+            SELECT
+                lot,
+                FERTH,
+                ITEMCHECK,
+                machine,
+                STARTTIME,
+                FINISHTIME,
+                POREQNO,
+                Qty
+            FROM FinalData
+            WHERE rn = 1  -- Chỉ lấy dòng mới nhất cho mỗi nhóm ITEMCHECK
+            ORDER BY
+                lot ASC, STARTTIME ASC
+            OPTION (HASH JOIN, RECOMPILE);
+            
             
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMoldAndMainWaitingIOT();
@@ -310,50 +326,59 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
     List<Object[]> findDailyHeatGuideSubAndDowelIOT();
 
     @Query(value = """
-             WITH RankedLots AS (
-                         SELECT
-                             lot,
-                             POREQNO,
-                             ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
-                         FROM F2_HeatGuide_Lot
-                     ),
-                     RankedData AS (
-                         SELECT
-                             l.lot,
-                             d.POREQNO,
-                             d.FERTH,
-                             COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- ✅ Lấy machine từ iot, nếu NULL thì lấy ITEMCHECK
-                             d.ITEMCHECK,
-                             MIN(d.STARTTIME) AS STARTTIME,
-                             MAX(d.FINISHTIME) AS FINISHTIME,
-                             ROW_NUMBER() OVER (PARTITION BY l.lot, d.FERTH, d.ITEMCHECK ORDER BY MAX(d.FINISHTIME) DESC) AS rn
-                         FROM RankedLots AS l
-                         INNER JOIN F2_HeatGuide_Daily AS d
-                             ON l.POREQNO = d.POREQNO
-                         LEFT JOIN F2_HeatGuide_IOTData iot
-                             ON d.POREQNO = iot.POREQNO
-                             AND d.ITEMCHECK = iot.ITEMCHECK -- ✅ Thêm điều kiện để lấy đúng machine
-                         LEFT JOIN F2_HeatGuide_Daily d2
-                             ON d.POREQNO = d2.POREQNO
-                             AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
-                         LEFT JOIN HeatFinishGuide hfg
-                             ON hfg.PO = l.POREQNO
-                         WHERE
-                             d.FERTH IN ('Mold Post', 'Main Post') -- ✅ Lọc theo Mold Post & Main Post
-                             AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
-                             AND d2.POREQNO IS NULL
-                             AND hfg.PO IS NULL
-                             AND l.lot_rank = 1  -- ✅ Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
-                         GROUP BY
-                             l.lot, d.POREQNO, d.FERTH, d.ITEMCHECK, iot.machine
-                     )
-                     SELECT
-                         lot, FERTH, ITEMCHECK, machine, STARTTIME, FINISHTIME -- ✅ Thêm machine vào kết quả
-                     FROM RankedData
-                     WHERE rn = 1  -- ✅ Chỉ lấy 1 dòng duy nhất cho mỗi nhóm ITEMCHECK
-                     ORDER BY
-                         lot ASC, STARTTIME ASC
-                     OPTION (HASH JOIN, RECOMPILE);
+            WITH RankedLots AS (
+                SELECT
+                    lot,
+                    POREQNO,
+                    ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
+                FROM F2_HeatGuide_Lot
+            ),
+            RankedData AS (
+                SELECT
+                    l.lot,
+                    d.POREQNO,
+                    d.Qty,
+                    d.FERTH,
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- ✅ Nếu machine NULL thì lấy ITEMCHECK
+                    d.ITEMCHECK,
+                    MIN(d.STARTTIME) AS STARTTIME,
+                    MAX(d.FINISHTIME) AS FINISHTIME,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY l.lot, d.FERTH, d.ITEMCHECK
+                        ORDER BY MAX(d.FINISHTIME) DESC
+                    ) AS rn
+                FROM RankedLots AS l
+                INNER JOIN F2_HeatGuide_Daily AS d
+                    ON l.POREQNO = d.POREQNO
+                LEFT JOIN F2_HeatGuide_IOTData iot
+                    ON d.POREQNO = iot.POREQNO
+                    AND d.ITEMCHECK = iot.ITEMCHECK
+                LEFT JOIN F2_HeatGuide_Daily d2
+                    ON d.POREQNO = d2.POREQNO
+                    AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
+                LEFT JOIN HeatFinishGuide hfg
+                    ON hfg.PO = l.POREQNO
+                WHERE
+                    d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+                    AND d2.POREQNO IS NULL
+                    AND hfg.PO IS NULL
+                    AND l.lot_rank = 1
+                GROUP BY
+                    l.lot, d.POREQNO, d.Qty, d.FERTH, d.ITEMCHECK, iot.machine
+            )
+            SELECT
+                lot,
+                FERTH,
+                ITEMCHECK,
+                machine,
+                STARTTIME,
+                FINISHTIME,
+                POREQNO,
+                Qty
+            FROM RankedData
+            WHERE rn = 1
+            ORDER BY lot ASC, STARTTIME ASC
+            OPTION (HASH JOIN, RECOMPILE);
             
             
             """, nativeQuery = true)

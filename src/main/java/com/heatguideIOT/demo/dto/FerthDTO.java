@@ -5,11 +5,9 @@ import lombok.Data;
 import java.util.List;
 @Data
 public class FerthDTO {
-    private String name;
     private List<LotDTO> lots;
 
-    public FerthDTO(String name, List<LotDTO> lots) {
-        this.name = name;
+    public FerthDTO(List<LotDTO> lots) {
         this.lots = lots;
     }
 

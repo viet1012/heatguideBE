@@ -9,7 +9,7 @@ import java.util.Objects;
 @AllArgsConstructor
 public class LotInfoDTO {
 
-    private String itemCheck;
+    private String itemCheckFinal;
     private String note;
     private String ferth;
     private Integer qty;

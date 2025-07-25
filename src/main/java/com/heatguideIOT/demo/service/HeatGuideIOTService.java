@@ -76,7 +76,6 @@ public class HeatGuideIOTService {
                 )
         ).collect(Collectors.toList());
     }
-
     public List<FerthDTO> findDailyHeatGuideIOT(String type) {
         List<Object[]> results;
 
@@ -120,66 +119,43 @@ public class HeatGuideIOTService {
                 ));
 
         // Convert to LotDTO
-//        List<LotDTO> lotList = lotMap.entrySet().stream()
-//                .map(entry -> {
-//                    String lot = entry.getKey();
-//                    List<HeatGuideItemDTO> lotItems = entry.getValue();
-//
-//                    // Tạo danh sách info không trùng ferth + poreqno + qty
-//                    List<LotInfoDTO> infoList = lotItems.stream()
-//                            .map(item -> new LotInfoDTO(item.getFerth(), item.getQty(), item.getPOREQNO()))
-//                            .distinct()
-//                            .collect(Collectors.toList());
-//
-//                    // Giữ lại itemCheck duy nhất (ví dụ lấy item đầu tiên với mỗi itemCheck)
-//                    Map<String, HeatGuideItemDTO> uniqueItemCheckMap = lotItems.stream()
-//                            .collect(Collectors.toMap(
-//                                    HeatGuideItemDTO::getItemCheck,
-//                                    item -> item,
-//                                    (existing, replacement) -> existing, // Giữ lại cái đầu tiên nếu trùng itemCheck
-//                                    LinkedHashMap::new // Giữ thứ tự
-//                            ));
-//
-//                    // Trả kết quả
-//                    return new LotDTO(lot, infoList, new ArrayList<>(uniqueItemCheckMap.values()));
-//                })
-//                .collect(Collectors.toList());
-//
-//        return List.of(new FerthDTO(lotList));
-
-        // Convert to LotDTO
         List<LotDTO> lotList = lotMap.entrySet().stream()
                 .map(entry -> {
                     String lot = entry.getKey();
                     List<HeatGuideItemDTO> lotItems = entry.getValue();
 
-                    // ✅ Tạo infoMap để gom các info duy nhất (theo ferth + poreqno + qty)
+                    // ✅ Tạo infoMap: gom info theo ferth + poreqno + qty
                     Map<String, LotInfoDTO> infoMap = IntStream.range(0, results.size())
                             .filter(i -> ((String) results.get(i)[0]).equals(lot)) // chỉ dòng thuộc lot hiện tại
                             .mapToObj(i -> {
                                 Object[] row = results.get(i);
-                                String itemCheck = (String) row[2];
-                                String machine = (String) row[3]; // không dùng ở đây, nhưng bạn có thể cần
                                 String ferth = (String) row[1];
                                 String poreqno = row[6] != null ? row[6].toString() : null;
                                 Integer qty = row[7] != null ? ((Number) row[7]).intValue() : null;
-                                String note = row.length > 8 && row[8] != null ? row[8].toString() : null;
+                                String note = row[8] != null ? row[8].toString() : null;
+                                String itemCheckFinal = row[9] != null ? row[9].toString().trim().toUpperCase() : "";
 
-                                // Tạo key duy nhất
+                                // Không ép "" nữa, giữ nguyên
                                 String key = ferth + "|" + poreqno + "|" + qty;
 
-                                return Map.entry(key, new LotInfoDTO(itemCheck, note, ferth, qty, poreqno));
+                                return Map.entry(key, new LotInfoDTO(itemCheckFinal, note, ferth, qty, poreqno));
                             })
                             .collect(Collectors.toMap(
                                     Map.Entry::getKey,
                                     Map.Entry::getValue,
-                                    (existing, replacement) -> existing, // giữ cái đầu tiên nếu trùng key
+                                    (existing, replacement) -> {
+                                        // Ưu tiên giữ cái có itemCheckFinal
+                                        if (replacement.getItemCheckFinal() != null && !replacement.getItemCheckFinal().isEmpty()) {
+                                            return replacement;
+                                        }
+                                        return existing;
+                                    },
                                     LinkedHashMap::new
                             ));
 
                     List<LotInfoDTO> infoList = new ArrayList<>(infoMap.values());
 
-                    // Giữ lại itemCheck duy nhất (ví dụ lấy item đầu tiên với mỗi itemCheck)
+                    // Lấy unique itemCheck cho items
                     Map<String, HeatGuideItemDTO> uniqueItemCheckMap = lotItems.stream()
                             .collect(Collectors.toMap(
                                     HeatGuideItemDTO::getItemCheck,
@@ -193,10 +169,7 @@ public class HeatGuideIOTService {
                 .collect(Collectors.toList());
 
         return List.of(new FerthDTO(lotList));
-
     }
-
-
 
 
 

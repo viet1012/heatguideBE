@@ -12,165 +12,10 @@ import java.util.List;
 @Repository
 public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Integer> { // 🔹 Sửa Long thành Integer
 
-    @Query(value = "SELECT * FROM F2_HeatGuide_IOTData", nativeQuery = true)
-    List<HeatGuideIOT> findAllRecords();
 
 
     @Query(value = """
-                SELECT dash.Mac_ID, dash.Mac_Name, dash.STD_Hour, STD_Output_Day, output.Finish_Date, output.OutputQty, processing.Processing_Hour
-                        FROM dbo.F2_Dashboard_Heat_Guide dash
-                        \s
-                        LEFT JOIN\s
-                        (
-                            SELECT machine, Finish_Date, SUM(Sum_Qty) AS OutputQty
-                            FROM
-                            (
-                                SELECT iot.machine,\s
-                                       CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101) AS Finish_Date,\s
-                                       SUM(iot.Qty) AS Sum_Qty
-                                FROM dbo.F2_HeatGuide_IOTData iot
-                                WHERE iot.FINISHTIME IS NOT NULL
-                                GROUP BY iot.machine, CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101)
-                            ) AS Table_Temp
-                            GROUP BY machine, Finish_Date
-                            HAVING Finish_Date = CONVERT(varchar, DATEADD(hour, -6, GETDATE()), 101)
-                        ) AS output
-                        ON dash.Mac_ID = output.machine
-                        \s
-                        LEFT JOIN\s
-                        (
-                            SELECT Table_Temp2.machine,\s
-                                   CAST(DATEDIFF(MINUTE, Table_Temp2.FirstOfSTARTTIME, GETDATE()) / 60.0 AS DECIMAL(10,2))  AS Processing_Hour
-                            FROM
-                            (
-                                SELECT iot.machine,\s
-                                       MIN(iot.no_id) AS FirstOfno_id,\s
-                                       MIN(iot.STARTTIME) AS FirstOfSTARTTIME
-                                FROM dbo.F2_HeatGuide_IOTData iot
-                                WHERE iot.FINISHTIME IS NULL
-                                GROUP BY iot.machine
-                            ) AS Table_Temp2
-                        ) AS processing
-                        ON dash.Mac_ID = processing.machine;
-            """, nativeQuery = true)
-    List<MachineDashboardDTO> getMachineDashboardData();
-
-
-    /// QUERY ĐÚNG
-//    @Query(value = """
-//        SELECT dash.Mac_ID, dash.Mac_Name, dash.STD_Hour, STD_Output_Day,
-//               output.Finish_Date, output.OutputQty,
-//               processing.Processing_Hour,
-//                processing.LastFinishTime,
-//               processing.Note -- ✅ Thêm Note vào SELECT
-//        FROM dbo.F2_Dashboard_Heat_Guide dash
-//
-//        -- Join với Output Data
-//        LEFT JOIN
-//        (
-//            SELECT machine, Finish_Date, SUM(Sum_Qty) AS OutputQty
-//            FROM
-//            (
-//                SELECT iot.machine,
-//                       CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101) AS Finish_Date,
-//                       SUM(iot.Qty) AS Sum_Qty
-//                FROM dbo.F2_HeatGuide_IOTData iot
-//                WHERE iot.FINISHTIME IS NOT NULL
-//                GROUP BY iot.machine, CONVERT(varchar, DATEADD(hour, -6, iot.FINISHTIME), 101)
-//            ) AS Table_Temp
-//            GROUP BY machine, Finish_Date
-//            HAVING Finish_Date = CONVERT(varchar, DATEADD(hour, -6, GETDATE()), 101)
-//        ) AS output
-//        ON dash.Mac_ID = output.machine
-//
-//        -- Join với Processing Data
-//        LEFT JOIN
-//        (
-//            SELECT Table_Temp2.machine,
-//                   CAST(DATEDIFF(MINUTE, MIN(Table_Temp2.FirstOfSTARTTIME), GETDATE()) / 60.0 AS DECIMAL(10,2))  AS Processing_Hour,
-//                   MAX(iot.FINISHTIME) AS LastFinishTime,
-//                   MAX(iot.Note) AS Note -- ✅ Lấy Note (nếu có nhiều, lấy MAX để tránh GROUP BY lỗi)
-//            FROM
-//            (
-//                SELECT iot.machine,
-//                       MIN(iot.no_id) AS FirstOfno_id,
-//                       MIN(iot.STARTTIME) AS FirstOfSTARTTIME
-//                FROM dbo.F2_HeatGuide_IOTData iot
-//                WHERE iot.FINISHTIME IS NULL
-//                GROUP BY iot.machine
-//            ) AS Table_Temp2
-//            LEFT JOIN dbo.F2_HeatGuide_IOTData iot
-//            ON Table_Temp2.machine = iot.machine
-//            GROUP BY Table_Temp2.machine
-//        ) AS processing
-//        ON dash.Mac_ID = processing.machine;
-//    """, nativeQuery = true)
-//    List<MachineDashboardDTO> getMachineDashboardData();
-    @Query(value = """
-                SELECT\s
-                   DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
-                   SUM(h.Qty) AS totalQty,
-                   d.Mac_ID
-               FROM F2_HeatGuide_IOTData h
-               JOIN F2_Dashboard_Heat_Guide d ON h.machine = d.Mac_ID
-               WHERE h.STARTTIME >= DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-                 AND h.STARTTIME < DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-                 AND d.Mac_ID = :macID  -- Lọc theo Mac_ID
-               GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), d.Mac_ID
-               ORDER BY hourSlot;
-            
-            """, nativeQuery = true)
-    List<Object[]> findHourlyDataByItem(@Param("macID") String itemCheck);
-
-
-//    @Query(value = """
-//    SELECT
-//        DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,
-//        SUM(h.Qty) AS totalQty,
-//        h.ITEMCHECK
-//    FROM F2_HeatGuide_IOTData h
-//    WHERE h.STARTTIME >= DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-//      AND h.STARTTIME < DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE() + 1)))
-//      AND h.ITEMCHECK = :itemCheck
-//    GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), h.ITEMCHECK
-//    ORDER BY hourSlot
-//    """, nativeQuery = true)
-//    List<Object[]> findNightShiftDataByItem(@Param("itemCheck") String itemCheck);
-
-
-    @Query(value = """
-                        SELECT\s
-                           DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
-                           SUM(h.Qty) AS totalQty,
-                           d.Mac_ID
-                       FROM F2_HeatGuide_IOTData h
-                       JOIN F2_Dashboard_Heat_Guide d ON h.machine = d.Mac_ID
-                     WHERE h.STARTTIME >= DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-                             AND h.STARTTIME < DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE() + 1)))
-                         AND d.Mac_ID = :macID  -- Lọc theo Mac_ID
-                       GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), d.Mac_ID
-                       ORDER BY hourSlot;
-            """, nativeQuery = true)
-    List<Object[]> findNightShiftDataByItem(@Param("macID") String itemCheck);
-
-    @Query(value = """
-                      SELECT\s
-                           DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0) AS hourSlot,\s
-                           SUM(h.Qty) AS totalQty,
-                           d.Mac_ID
-                       FROM F2_HeatGuide_IOTData h
-                       JOIN F2_Dashboard_Heat_Guide d ON h.machine = d.Mac_ID
-                       WHERE h.STARTTIME >= DATEADD(HOUR, 18, CONVERT(DATETIME, CONVERT(DATE, GETDATE() - 1)))
-                              AND h.STARTTIME < DATEADD(HOUR, 6, CONVERT(DATETIME, CONVERT(DATE, GETDATE())))
-                         AND d.Mac_ID = :macID  -- Lọc theo Mac_ID
-                       GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, h.STARTTIME), 0), d.Mac_ID
-                       ORDER BY hourSlot;
-            """, nativeQuery = true)
-    List<Object[]> findNightShiftDataByItemForYesterday(@Param("macID") String itemCheck);
-
-
-    @Query(value = """
-              WITH RankedLots AS (
+            WITH RankedLots AS (
                 SELECT
                     lot,
                     POREQNO,
@@ -255,28 +100,31 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     d.Qty,
                     d.FERTH,
                     d.ITEMCHECK,
-                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- Nếu machine NULL thì lấy ITEMCHECK
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,
+                    iot.NOTE,
                     MIN(d.STARTTIME) AS STARTTIME,
-                    MAX(d.FINISHTIME) AS FINISHTIME
+                    MAX(d.FINISHTIME) AS FINISHTIME,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY l.lot, d.FERTH, d.ITEMCHECK
+                        ORDER BY MAX(d.FINISHTIME) DESC
+                    ) AS rn
                 FROM RankedLots AS l
                 INNER JOIN F2_HeatGuide_Daily AS d
                     ON l.POREQNO = d.POREQNO
                 LEFT JOIN F2_HeatGuide_IOTData iot
-                    ON d.POREQNO = iot.POREQNO
-                    AND d.ITEMCHECK = iot.ITEMCHECK  -- Điều kiện lấy đúng machine
+                    ON d.POREQNO = iot.POREQNO AND d.ITEMCHECK = iot.ITEMCHECK
                 LEFT JOIN F2_HeatGuide_Daily d2
-                    ON d.POREQNO = d2.POREQNO
-                    AND d2.ITEMCHECK = 'Waiting'  -- Chỉ lấy các mục có 'Waiting'
+                    ON d.POREQNO = d2.POREQNO AND d2.ITEMCHECK = 'Waiting'
                 LEFT JOIN HeatFinishGuide hfg
                     ON hfg.PO = l.POREQNO
                 WHERE
                     d.FERTH IN ('Mold Bush', 'Main Bush', 'Sub Post', 'Sub Bush', 'Dowel Pins')
                     AND d.STARTTIME >= DATEADD(DAY, -10, GETDATE())
-                    AND hfg.PO IS NULL  -- Không có trong bảng HeatFinishGuide
-                    AND l.lot_rank = 1  -- Chỉ lấy lot nhỏ nhất cho mỗi POREQNO
+                    AND hfg.PO IS NULL
                     AND d2.ITEMCHECK = 'Waiting'
+                    AND l.lot_rank = 1
                 GROUP BY
-                    l.lot, d.POREQNO, d.FERTH, d.ITEMCHECK, iot.machine, d.Qty
+                    l.lot, d.POREQNO, d.FERTH, d.ITEMCHECK, iot.machine, d.Qty, iot.NOTE
             ),
             FinalData AS (
                 SELECT
@@ -288,6 +136,18 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     FINISHTIME,
                     POREQNO,
                     Qty,
+                    -- NOTE chỉ khi là HRC
+                    CASE
+                        WHEN ITEMCHECK LIKE 'HRC%' THEN NOTE
+                        ELSE NULL
+                    END AS NOTE,
+            
+                    -- itemCheckFinal chỉ khi là HRC_1 hoặc HRC_2
+                    CASE
+                        WHEN ITEMCHECK IN ('HRC_1', 'HRC_2') THEN ITEMCHECK
+                        ELSE NULL
+                    END AS itemCheckFinal,
+            
                     ROW_NUMBER() OVER (PARTITION BY lot, FERTH, ITEMCHECK ORDER BY STARTTIME DESC) AS rn
                 FROM RankedData
             )
@@ -299,13 +159,13 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                 STARTTIME,
                 FINISHTIME,
                 POREQNO,
-                Qty
+                Qty,
+                NOTE,
+                itemCheckFinal
             FROM FinalData
-            WHERE rn = 1  -- Chỉ lấy dòng mới nhất cho mỗi nhóm ITEMCHECK
-            ORDER BY
-                lot ASC, STARTTIME ASC
+            WHERE rn = 1
+            ORDER BY lot ASC, STARTTIME ASC
             OPTION (HASH JOIN, RECOMPILE);
-            
             
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMoldAndMainWaitingIOT();
@@ -352,8 +212,9 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     d.POREQNO,
                     d.Qty,
                     d.FERTH,
-                    COALESCE(iot.machine, d.ITEMCHECK) AS machine, -- ✅ Nếu machine NULL thì lấy ITEMCHECK
                     d.ITEMCHECK,
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- ✅ Ưu tiên machine, nếu NULL thì lấy ITEMCHECK
+                    iot.NOTE,
                     MIN(d.STARTTIME) AS STARTTIME,
                     MAX(d.FINISHTIME) AS FINISHTIME,
                     ROW_NUMBER() OVER (
@@ -361,7 +222,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                         ORDER BY MAX(d.FINISHTIME) DESC
                     ) AS rn
                 FROM RankedLots AS l
-                INNER JOIN F2_HeatGuide_Daily AS d
+                INNER JOIN F2_HeatGuide_Daily d
                     ON l.POREQNO = d.POREQNO
                 LEFT JOIN F2_HeatGuide_IOTData iot
                     ON d.POREQNO = iot.POREQNO
@@ -377,7 +238,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     AND hfg.PO IS NULL
                     AND l.lot_rank = 1
                 GROUP BY
-                    l.lot, d.POREQNO, d.Qty, d.FERTH, d.ITEMCHECK, iot.machine
+                    l.lot, d.POREQNO, d.Qty, d.FERTH, d.ITEMCHECK, iot.machine, iot.NOTE
             )
             SELECT
                 lot,
@@ -387,11 +248,25 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                 STARTTIME,
                 FINISHTIME,
                 POREQNO,
-                Qty
+                Qty,
+            
+                -- ✅ NOTE chỉ hiển thị nếu là HRC
+                CASE
+                    WHEN ITEMCHECK LIKE 'HRC%' THEN NOTE
+                    ELSE NULL
+                END AS NOTE,
+            
+                -- ✅ itemCheckFinal chỉ lấy 'HRC_1' hoặc 'HRC_2'
+                CASE
+                    WHEN ITEMCHECK IN ('HRC_1', 'HRC_2') THEN ITEMCHECK
+                    ELSE NULL
+                END AS itemCheckFinal
+            
             FROM RankedData
             WHERE rn = 1
             ORDER BY lot ASC, STARTTIME ASC
             OPTION (HASH JOIN, RECOMPILE);
+            
             
             
             """, nativeQuery = true)

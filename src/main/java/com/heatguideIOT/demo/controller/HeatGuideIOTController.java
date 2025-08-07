@@ -17,31 +17,6 @@ public class HeatGuideIOTController {
     @Autowired
     private HeatGuideIOTService service;
 
-
-    @GetMapping("/machines")
-//    public List<MachineSummaryDTO> getMachineSummary() {
-//        return service.getMachineSummary();
-//    }
-    public List<MachineDashboardDTO> getMachineSummary() {
-        return service.getMachineDashboardData();
-    }
-
-    @GetMapping("/by-day-range")
-    public List<HeatGuideOutputDTO> getDataByTimeRangeAndItemCheck(@RequestParam String itemCheck) {
-        return service.getDataByTimeRangeAndItemCheck(itemCheck);
-    }
-
-    @GetMapping("/by-night-range")
-    public List<HeatGuideOutputDTO> getDataNightShiftDataByItem(@RequestParam String itemCheck) {
-        return service.getDataNightShiftDataByItem(itemCheck);
-    }
-
-
-    @GetMapping("/by-night-yesterday-range")
-    public List<HeatGuideOutputDTO> findNightShiftDataByItemForYesterday(@RequestParam String itemCheck) {
-        return service.findNightShiftDataByItemForYesterday(itemCheck);
-    }
-
     @GetMapping("/findDailyHeatGuideMoldAndMainIOT")
     public List<FerthDTO> findDailyHeatGuideMoldAndMainIOT() {
         List<FerthDTO> findDailyHeatGuideMoldAndMainIOT =  service.findDailyHeatGuideIOT("MoldAndMain");

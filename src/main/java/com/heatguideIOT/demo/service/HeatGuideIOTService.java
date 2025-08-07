@@ -17,65 +17,7 @@ public class HeatGuideIOTService {
     @Autowired
     private HeatGuideIOTRepository repository;
 
-    public List<HeatGuideIOT> findAllRecords() {
-        return repository.findAllRecords();
-    }
 
-    public List<MachineDashboardDTO> getMachineDashboardData() {
-        return repository.getMachineDashboardData();
-    }
-
-    public List<HeatGuideOutputDTO> getDataByTimeRangeAndItemCheck(String itemCheck) {
-        List<Object[]> results = repository.findHourlyDataByItem(itemCheck);
-
-        System.out.println("Query Params: itemCheck = " + itemCheck);
-        System.out.println("Raw Query Results: " + results.size());
-        for (Object[] row : results) {
-            System.out.println("starttime: " + row[0] + ", qty: " + row[1] + ", itemcheck: " + row[2]);
-        }
-
-        return results.stream().map(obj ->
-                new HeatGuideOutputDTO(
-                        ((Timestamp) obj[0]).toLocalDateTime(), // starttime
-                        (Integer) obj[1],        // qty
-                        (String) obj[2]          // itemcheck
-                )
-        ).collect(Collectors.toList());
-    }
-
-    public List<HeatGuideOutputDTO> getDataNightShiftDataByItem(String itemCheck) {
-        List<Object[]> results = repository.findNightShiftDataByItem(itemCheck);
-
-        System.out.println("Query Params: itemCheck = " + itemCheck);
-        System.out.println("Raw Query Results: " + results.size());
-        for (Object[] row : results) {
-            System.out.println("starttime: " + row[0] + ", qty: " + row[1] + ", itemcheck: " + row[2]);
-        }
-
-        return results.stream().map(obj ->
-                new HeatGuideOutputDTO(
-                        ((Timestamp) obj[0]).toLocalDateTime(), // starttime
-                        (Integer) obj[1],        // qty
-                        (String) obj[2]          // itemcheck
-                )
-        ).collect(Collectors.toList());
-    }
-
-    public List<HeatGuideOutputDTO> findNightShiftDataByItemForYesterday(String itemCheck) {
-        List<Object[]> results = repository.findNightShiftDataByItemForYesterday(itemCheck);
-
-        for (Object[] row : results) {
-            System.out.println("starttime: " + row[0] + ", qty: " + row[1] + ", itemcheck: " + row[2]);
-        }
-
-        return results.stream().map(obj ->
-                new HeatGuideOutputDTO(
-                        ((Timestamp) obj[0]).toLocalDateTime(), // starttime
-                        (Integer) obj[1],        // qty
-                        (String) obj[2]          // itemcheck
-                )
-        ).collect(Collectors.toList());
-    }
     public List<FerthDTO> findDailyHeatGuideIOT(String type) {
         List<Object[]> results;
 

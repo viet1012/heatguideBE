@@ -11,7 +11,106 @@ import java.util.List;
 
 @Repository
 public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Integer> { // 🔹 Sửa Long thành Integer
-
+    @Query(value = """
+            WITH RankedLots AS (
+                SELECT
+                    lot,
+                    POREQNO,
+                    ROW_NUMBER() OVER (PARTITION BY POREQNO ORDER BY lot ASC) AS lot_rank
+                FROM F2_HeatGuide_Lot
+            ),
+            RankedData AS (
+                SELECT
+                    l.lot,
+                    d.POREQNO,
+                    d.Qty,
+                    d.FERTH,
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,
+                    d.ITEMCHECK,
+                    iot.NOTE,
+                    MIN(d.STARTTIME) AS STARTTIME,
+                    MAX(d.FINISHTIME) AS FINISHTIME,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY l.lot, d.FERTH, d.ITEMCHECK
+                        ORDER BY MAX(d.FINISHTIME) DESC
+                    ) AS rn
+                FROM RankedLots AS l
+                INNER JOIN F2_HeatGuide_Daily AS d
+                    ON l.POREQNO = d.POREQNO
+                LEFT JOIN F2_HeatGuide_IOTData iot
+                    ON d.POREQNO = iot.POREQNO AND d.ITEMCHECK = iot.ITEMCHECK
+                LEFT JOIN F2_HeatGuide_Daily d2
+                    ON d.POREQNO = d2.POREQNO AND d2.ITEMCHECK IN ('Heat Finish', 'Waiting')
+                LEFT JOIN HeatFinishGuide hfg
+                    ON hfg.PO = l.POREQNO
+                WHERE
+                    d.FERTH NOT IN ('Mold Post', 'Main Post')
+                    AND d.STARTTIME >= DATEADD(DAY, -7, GETDATE())
+                    AND d2.POREQNO IS NULL
+                    AND hfg.PO IS NULL
+                    AND l.lot_rank = 1
+                GROUP BY
+                    l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK, d.Qty, iot.NOTE
+            ),
+            -- Lấy Qty của từng POREQNO (chỉ lấy 1 Qty cho mỗi PO để tránh trùng lặp)
+            POQtyData AS (
+                SELECT
+                    POREQNO,
+                    MAX(Qty) AS PO_Qty,  -- Hoặc có thể dùng MIN/AVG tùy logic business
+            		MAX(FERTH) AS FERTH  -- Lấy đại diện FERTH
+                FROM F2_HeatGuide_Daily
+                WHERE STARTTIME >= DATEADD(DAY, -7, GETDATE())
+                GROUP BY POREQNO
+            ),
+            BatchPOs AS (
+                SELECT
+                    b.batchid,
+                    -- ✅ Sửa: ép kiểu về VARCHAR(MAX)
+                    CAST(STRING_AGG(CAST(b.poreqno AS VARCHAR(MAX)), ', ') AS VARCHAR(MAX)) AS POREQNOs_in_same_lot,
+            
+                    -- ✅ Format lại như yêu cầu: POREQNO: ..., FERTH: ..., QTY: ...
+                    CAST(STRING_AGG(
+                        'POREQNO: ' + CAST(b.poreqno AS VARCHAR(MAX)) +
+                        ' | FERTH: ' + ISNULL(pq.FERTH, 'N/A') +
+                        ' | QTY: ' + CAST(ISNULL(pq.PO_Qty, 0) AS VARCHAR(MAX)),
+                        ' ; '
+                    ) AS VARCHAR(MAX)) AS POREQNOs_with_qty
+                FROM F2_HeatGuide_Batch b
+                LEFT JOIN POQtyData pq ON b.poreqno = pq.POREQNO
+                GROUP BY b.batchid
+            )
+            
+            
+            SELECT
+                r.lot,
+                r.FERTH,
+                r.ITEMCHECK,
+                r.machine,
+                r.STARTTIME,
+                r.FINISHTIME,
+                r.POREQNO,
+                r.Qty,
+                -- NOTE chỉ khi là HRC
+                CASE
+                    WHEN r.ITEMCHECK LIKE 'HRC%' THEN r.NOTE
+                    ELSE NULL
+                END AS NOTE,
+                -- ✅ Thêm itemCheckFinal: nếu là HRC_1 hoặc HRC_2 thì giữ nguyên, còn lại NULL
+                CASE
+                    WHEN r.ITEMCHECK IN ('HRC_1', 'HRC_2') THEN r.ITEMCHECK
+                    ELSE NULL
+                END AS itemCheckFinal,
+                -- ✅ Cột: các POREQNO cùng lot (không có qty)
+               -- b.POREQNOs_in_same_lot,
+                -- ✅ Cột: các POREQNO cùng lot kèm qty chi tiết
+                b.POREQNOs_with_qty
+            FROM RankedData r
+            LEFT JOIN BatchPOs b ON r.lot = b.batchid
+            WHERE r.rn = 1
+            ORDER BY r.lot ASC, r.STARTTIME ASC
+            OPTION (HASH JOIN, RECOMPILE);
+            """, nativeQuery = true)
+    List<Object[]> findDailyHeatGuideMoldAndMainIOT();
 
 
     @Query(value = """
@@ -83,7 +182,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
             OPTION (HASH JOIN, RECOMPILE);
             
             """, nativeQuery = true)
-    List<Object[]> findDailyHeatGuideMoldAndMainIOT();
+    List<Object[]> findDailyHeatGuideMoldAndMainIOT1();
 
     @Query(value = """
             WITH RankedLots AS (

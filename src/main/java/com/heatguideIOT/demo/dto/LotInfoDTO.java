@@ -15,7 +15,8 @@ public class LotInfoDTO {
     private Integer qty;
     private String poreqno;
 
-
+    // ✅ Thêm cột mới
+    private String poreqnosWithQty; // ví dụ: "720000189745(2)"
 
 
     @Override

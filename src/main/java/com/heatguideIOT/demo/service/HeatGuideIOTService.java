@@ -26,9 +26,6 @@ public class HeatGuideIOTService {
             case "MoldAndMain":
                 results = repository.findDailyHeatGuideMoldAndMainIOT();
                 break;
-            case "SubAndDowel":
-                results = repository.findDailyHeatGuideSubAndDowelIOT();
-                break;
             case "MainAndMold":
                 results = repository.findDailyHeatGuideMainAndMoldIOT();
                 break;
@@ -76,11 +73,10 @@ public class HeatGuideIOTService {
                                 Integer qty = row[7] != null ? ((Number) row[7]).intValue() : null;
                                 String note = row[8] != null ? row[8].toString() : null;
                                 String itemCheckFinal = row[9] != null ? row[9].toString().trim().toUpperCase() : "";
-
-                                // Không ép "" nữa, giữ nguyên
+                                String poreqnosWithQty = (row.length > 10 && row[10] != null) ? row[10].toString() : null;
                                 String key = ferth + "|" + poreqno + "|" + qty;
 
-                                return Map.entry(key, new LotInfoDTO(itemCheckFinal, note, ferth, qty, poreqno));
+                                return Map.entry(key, new LotInfoDTO(itemCheckFinal, note, ferth, qty, poreqno, poreqnosWithQty));
                             })
                             .collect(Collectors.toMap(
                                     Map.Entry::getKey,

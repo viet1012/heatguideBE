@@ -269,34 +269,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMoldAndMainWaitingIOT();
 
-    @Query(value = """    
-                 SELECT\s
-                     l.lot,   \s
-                     d.FERTH,   \s
-                     d.ITEMCHECK,   \s
-                     MIN(d.STARTTIME) AS STARTTIME,    \s
-                     MAX(d.FINISHTIME) AS FINISHTIME\s
-                 FROM\s
-                     F2_HeatGuide_Lot AS l\s
-                 INNER JOIN\s
-                     F2_HeatGuide_Daily AS d\s
-                     ON l.poreqno = d.POREQNO\s
-                 WHERE\s
-                      d.FERTH IN ('Sub Post', 'Sub Bush', 'Dowel Pins')
-                     AND d.STARTTIME >= DATEADD(DAY, -3, GETDATE())\s
-                     AND d.ITEMCHECK <> 'Heat Finish'
-                     AND NOT EXISTS (
-                         SELECT 1\s
-                         FROM HeatFinishGuide hfg\s
-                         WHERE hfg.PO = l.poreqno
-                     )
-                 GROUP BY\s
-                     l.lot, d.FERTH, d.ITEMCHECK
-                 ORDER BY\s
-                     l.lot ASC, STARTTIME ASC;
-            """, nativeQuery = true)
-    List<Object[]> findDailyHeatGuideSubAndDowelIOT();
-
     @Query(value = """
             WITH RankedLots AS (
                 SELECT
@@ -365,7 +337,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
             WHERE rn = 1
             ORDER BY lot ASC, STARTTIME ASC
             OPTION (HASH JOIN, RECOMPILE);
-            
             
             
             """, nativeQuery = true)

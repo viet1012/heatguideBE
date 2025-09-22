@@ -46,7 +46,7 @@ public class HeatGuideIOTService {
                         row[7] != null ? ((Number) row[7]).intValue() : null, // qty
                         row[6] != null ? (String) row[6] : null, // poreqno
                         (String) row[1] // ferth
-                )).collect(Collectors.toList());
+                )).toList();
 
         // Group by lot
         Map<String, List<HeatGuideItemDTO>> lotMap = IntStream.range(0, results.size())
@@ -54,7 +54,7 @@ public class HeatGuideIOTService {
                 .collect(Collectors.groupingBy(
                         i -> (String) results.get(i)[0], // lot
                         LinkedHashMap::new,
-                        Collectors.mapping(i -> items.get(i), Collectors.toList())
+                        Collectors.mapping(items::get, Collectors.toList())
                 ));
 
         // Convert to LotDTO

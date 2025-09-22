@@ -41,17 +41,6 @@ public class HeatGuideIOTController {
         return service.findDailyHeatGuideIOT("MoldAndMainWaiting");
     }
 
-    @GetMapping("/findDailyHeatGuideSubAndDowelIOT")
-    public List<FerthDTO> findDailyHeatGuideMainAndDowelIOT() {
-        List<FerthDTO> findDailyHeatGuideMoldAndMainIOT =  service.findDailyHeatGuideIOT("SubAndDowel");
-        int totalLots = findDailyHeatGuideMoldAndMainIOT.stream()
-                .mapToInt(ferth -> ferth.getLots().size())
-                .sum();
-        System.out.println("Tổng số lots: " + totalLots);
-
-        return service.findDailyHeatGuideIOT("SubAndDowel");
-    }
-
 
     @GetMapping("/findDailyHeatGuideMainAndMoldIOT")
     public List<FerthDTO> findDailyHeatGuideMainAndMoldIOT() {

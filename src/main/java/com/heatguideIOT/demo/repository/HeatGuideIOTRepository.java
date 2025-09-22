@@ -52,12 +52,12 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                 GROUP BY
                     l.lot, d.POREQNO, iot.machine, d.FERTH, d.ITEMCHECK, d.Qty, iot.NOTE
             ),
-            -- Lấy Qty của từng POREQNO (chỉ lấy 1 Qty cho mỗi PO để tránh trùng lặp)
+            -- Lấy Qty của từng POREQNO
             POQtyData AS (
                 SELECT
                     POREQNO,
-                    MAX(Qty) AS PO_Qty,  -- Hoặc có thể dùng MIN/AVG tùy logic business
-            		MAX(FERTH) AS FERTH  -- Lấy đại diện FERTH
+                    MAX(Qty) AS PO_Qty,
+                    MAX(FERTH) AS FERTH
                 FROM F2_HeatGuide_Daily
                 WHERE STARTTIME >= DATEADD(DAY, -7, GETDATE())
                 GROUP BY POREQNO
@@ -65,10 +65,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
             BatchPOs AS (
                 SELECT
                     b.batchid,
-                    -- ✅ Sửa: ép kiểu về VARCHAR(MAX)
                     CAST(STRING_AGG(CAST(b.poreqno AS VARCHAR(MAX)), ', ') AS VARCHAR(MAX)) AS POREQNOs_in_same_lot,
-            
-                    -- ✅ Format lại như yêu cầu: POREQNO: ..., FERTH: ..., QTY: ...
                     CAST(STRING_AGG(
                         'POREQNO: ' + CAST(b.poreqno AS VARCHAR(MAX)) +
                         ' | FERTH: ' + ISNULL(pq.FERTH, 'N/A') +
@@ -80,7 +77,6 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                 GROUP BY b.batchid
             )
             
-            
             SELECT
                 r.lot,
                 r.FERTH,
@@ -90,22 +86,19 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                 r.FINISHTIME,
                 r.POREQNO,
                 r.Qty,
-                -- NOTE chỉ khi là HRC
                 CASE
                     WHEN r.ITEMCHECK LIKE 'HRC%' THEN r.NOTE
                     ELSE NULL
                 END AS NOTE,
-                -- ✅ Thêm itemCheckFinal: nếu là HRC_1 hoặc HRC_2 thì giữ nguyên, còn lại NULL
                 CASE
                     WHEN r.ITEMCHECK IN ('HRC_1', 'HRC_2') THEN r.ITEMCHECK
                     ELSE NULL
                 END AS itemCheckFinal,
-                -- ✅ Cột: các POREQNO cùng lot (không có qty)
-               -- b.POREQNOs_in_same_lot,
-                -- ✅ Cột: các POREQNO cùng lot kèm qty chi tiết
-                b.POREQNOs_with_qty
+                b.POREQNOs_with_qty,
+                mb.RFID_Key   -- ✅ lấy thêm RFID_Key
             FROM RankedData r
             LEFT JOIN BatchPOs b ON r.lot = b.batchid
+            LEFT JOIN F2_HeatGuide_Master_Batch mb ON b.batchid = mb.Batch_id   -- ✅ join bảng master
             WHERE r.rn = 1
             ORDER BY r.lot ASC, r.STARTTIME ASC
             OPTION (HASH JOIN, RECOMPILE);
@@ -284,7 +277,7 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     d.Qty,
                     d.FERTH,
                     d.ITEMCHECK,
-                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- ✅ Ưu tiên machine, nếu NULL thì lấy ITEMCHECK
+                    COALESCE(iot.machine, d.ITEMCHECK) AS machine,  -- ✅ ưu tiên machine, nếu NULL thì lấy ITEMCHECK
                     iot.NOTE,
                     MIN(d.STARTTIME) AS STARTTIME,
                     MAX(d.FINISHTIME) AS FINISHTIME,
@@ -312,32 +305,34 @@ public interface HeatGuideIOTRepository extends JpaRepository<HeatGuideIOT, Inte
                     l.lot, d.POREQNO, d.Qty, d.FERTH, d.ITEMCHECK, iot.machine, iot.NOTE
             )
             SELECT
-                lot,
-                FERTH,
-                ITEMCHECK,
-                machine,
-                STARTTIME,
-                FINISHTIME,
-                POREQNO,
-                Qty,
+                r.lot,
+                r.FERTH,
+                r.ITEMCHECK,
+                r.machine,
+                r.STARTTIME,
+                r.FINISHTIME,
+                r.POREQNO,
+                r.Qty,
             
                 -- ✅ NOTE chỉ hiển thị nếu là HRC
                 CASE
-                    WHEN ITEMCHECK LIKE 'HRC%' THEN NOTE
+                    WHEN r.ITEMCHECK LIKE 'HRC%' THEN r.NOTE
                     ELSE NULL
                 END AS NOTE,
             
                 -- ✅ itemCheckFinal chỉ lấy 'HRC_1' hoặc 'HRC_2'
                 CASE
-                    WHEN ITEMCHECK IN ('HRC_1', 'HRC_2') THEN ITEMCHECK
+                    WHEN r.ITEMCHECK IN ('HRC_1', 'HRC_2') THEN r.ITEMCHECK
                     ELSE NULL
-                END AS itemCheckFinal
-            
-            FROM RankedData
-            WHERE rn = 1
-            ORDER BY lot ASC, STARTTIME ASC
+                END AS itemCheckFinal,
+                NULL AS POREQNOs_with_qty,   -- ✅ thêm dummy column
+                mb.RFID_Key   -- ✅ thêm RFID từ bảng master batch
+            FROM RankedData r
+            LEFT JOIN F2_HeatGuide_Master_Batch mb
+                ON r.lot = mb.Batch_id   -- ✅ join để lấy RFID_Key
+            WHERE r.rn = 1
+            ORDER BY r.lot ASC, r.STARTTIME ASC
             OPTION (HASH JOIN, RECOMPILE);
-            
             
             """, nativeQuery = true)
     List<Object[]> findDailyHeatGuideMainAndMoldIOT();

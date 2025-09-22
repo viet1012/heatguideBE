@@ -63,9 +63,19 @@ public class HeatGuideIOTService {
                     String lot = entry.getKey();
                     List<HeatGuideItemDTO> lotItems = entry.getValue();
 
-                    // ✅ Tạo infoMap: gom info theo ferth + poreqno + qty
+                    // Lấy rfID_key của lot hiện tại (giả sử cột cuối là row[11])
+
+                    String rfID_key = results.stream()
+                            .filter(r -> lot.equals(r[0])) // tránh NPE khi so sánh
+                            .map(r -> r.length > 11 && r[11] != null ? r[11].toString() : null)
+                            .filter(Objects::nonNull) // bỏ null
+                            .findFirst()
+                            .orElse(null);
+
+
+                    // ✅ infoMap logic giữ nguyên
                     Map<String, LotInfoDTO> infoMap = IntStream.range(0, results.size())
-                            .filter(i -> ((String) results.get(i)[0]).equals(lot)) // chỉ dòng thuộc lot hiện tại
+                            .filter(i -> ((String) results.get(i)[0]).equals(lot))
                             .mapToObj(i -> {
                                 Object[] row = results.get(i);
                                 String ferth = (String) row[1];
@@ -81,19 +91,14 @@ public class HeatGuideIOTService {
                             .collect(Collectors.toMap(
                                     Map.Entry::getKey,
                                     Map.Entry::getValue,
-                                    (existing, replacement) -> {
-                                        // Ưu tiên giữ cái có itemCheckFinal
-                                        if (replacement.getItemCheckFinal() != null && !replacement.getItemCheckFinal().isEmpty()) {
-                                            return replacement;
-                                        }
-                                        return existing;
-                                    },
+                                    (existing, replacement) -> replacement.getItemCheckFinal() != null && !replacement.getItemCheckFinal().isEmpty()
+                                            ? replacement : existing,
                                     LinkedHashMap::new
                             ));
 
                     List<LotInfoDTO> infoList = new ArrayList<>(infoMap.values());
 
-                    // Lấy unique itemCheck cho items
+                    // Unique items theo itemCheck
                     Map<String, HeatGuideItemDTO> uniqueItemCheckMap = lotItems.stream()
                             .collect(Collectors.toMap(
                                     HeatGuideItemDTO::getItemCheck,
@@ -102,9 +107,10 @@ public class HeatGuideIOTService {
                                     LinkedHashMap::new
                             ));
 
-                    return new LotDTO(lot, infoList, new ArrayList<>(uniqueItemCheckMap.values()));
+                    return new LotDTO(lot, rfID_key, infoList, new ArrayList<>(uniqueItemCheckMap.values())); // ✅ thêm rfID_key
                 })
                 .collect(Collectors.toList());
+
 
         return List.of(new FerthDTO(lotList));
     }
